@@ -1,0 +1,89 @@
+---
+title: "Practical Machine Learning Assignment"
+author: "David L"
+date: "Wednesday, August 13, 2014"
+output: html_document
+---
+
+## Synopsis
+
+This analysis is a part of Practical Machine Learning (https://www.coursera.org/course/predmachlearn) course project. 
+
+In this project, I used provided training dataset that is a subset of Weight Lifting Exercise Dataset (for more info, see http://groupware.les.inf.puc-rio.br/har). 
+
+## Analysis: Step by Setp
+
+### Preparation
+
+Loaded required libraries: 
+
+```{r}
+suppressWarnings(suppressPackageStartupMessages(require(caret)))
+suppressWarnings(suppressPackageStartupMessages(require(randomForest)))
+```
+
+Set seed for pseudo-RNG so the results are reproducible: 
+
+```{r}
+set.seed(1155)
+```
+
+### Data Manipulation
+
+Loaded data from the provided file: 
+
+```{r}
+temp <- read.csv("pml-training.csv")
+```
+
+First, I manually looked through the data and noticed that there are columns that have only few non-NA values, so I manually chose features I thought would be useful for model creation. 
+
+Next I kept only complete cases (using *complete.cases()*) and discarded features that carry (nearly) no information (using *nearZeroVars()*). 
+
+```{r}
+usedColumns <- c(8:11, 37:49, 60:68, 84:86, 102, 113:124, 140, 151:160)
+temp <- temp[,usedColumns]
+temp <- temp[complete.cases(temp),]
+nearZeroVars <- nearZeroVar(temp)
+if (length(nearZeroVars) > 0) {
+    temp <- temp[,-nearZeroVars]
+}
+```
+
+Split the dataset into training (75%) and cross-validation (25%) datasets:
+
+```{r}
+inTrainingSet <- createDataPartition(temp$classe, 0.75, list=FALSE, times=1)
+training <- temp[inTrainingSet,]
+validation <- temp[-inTrainingSet,]
+```
+
+### Model
+
+I have chosen random forest (from randomForest package) as my classification model: 
+
+```{r cache=TRUE}
+fit <- randomForest(classe~., data=training)
+```
+
+### In-sample Error
+
+There is no in-sample error: 
+
+```{r}
+predictionTraining <- predict(fit, training)
+suppressWarnings(confusionMatrix(predictionTraining, training$classe))
+```
+
+### Out of Sample Error
+
+Cross-validation sample error is about .004:
+
+```{r}
+predictionValidation <- predict(fit, validation)
+confusionMatrix(predictionValidation, validation$classe)
+```
+
+So expected out of sample error is < 1%. 
+
+On test samples, the model achieved 100% accuracy. Given the expected out of sample error and number of test samples, the results are well aligned with the expectations.
